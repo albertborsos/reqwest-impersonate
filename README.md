@@ -10,8 +10,6 @@ hyper = { git = "https://github.com/4JX/hyper.git", branch = "v0.14.18-patched" 
 h2 = { git = "https://github.com/4JX/h2.git", branch = "imp" }
 ```
 
-These patches were made specifically for `reqwest-impersonate` to work, but I would appreciate if someone took the time to PR more "proper" versions to the parent projects.
-
 ## Example
 
 `Cargo.toml`
