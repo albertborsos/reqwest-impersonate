@@ -27,9 +27,9 @@ reqwest-impersonate = { git = "https://github.com/epicmatthew23/reqwest-imperson
 use reqwest_impersonate::browser::ChromeVersion;
 
 fn main() {
-    // Build a client to mimic Chrome 104
+    // Build a client to mimic Chrome 114
     let client = reqwest_impersonate::blocking::Client::builder()
-        .chrome_builder(ChromeVersion::V104)
+        .chrome_builder(ChromeVersion::V114)
         .build()
         .unwrap();
 
