@@ -18,7 +18,8 @@ fn test_response_text() {
 #[test]
 fn test_response_non_utf_8_text() {
     let server = server::http(move |_req| async {
-        http::Response::builder()
+        http::Response
+            ::builder()
             .header("content-type", "text/plain; charset=gbk")
             .body(b"\xc4\xe3\xba\xc3"[..].into())
             .unwrap()
@@ -91,11 +92,7 @@ fn test_post() {
     });
 
     let url = format!("http://{}/2", server.addr());
-    let res = reqwest::blocking::Client::new()
-        .post(&url)
-        .body("Hello")
-        .send()
-        .unwrap();
+    let res = reqwest::blocking::Client::new().post(&url).body("Hello").send().unwrap();
 
     assert_eq!(res.url().as_str(), &url);
     assert_eq!(res.status(), reqwest::StatusCode::OK);
@@ -108,7 +105,7 @@ fn test_post_form() {
         assert_eq!(req.headers()["content-length"], "24");
         assert_eq!(
             req.headers()["content-type"],
-            "application/x-www-form-urlencoded"
+            "application/x-www-form-urlencoded; charset=UTF-8"
         );
 
         let data = hyper::body::to_bytes(req.into_body()).await.unwrap();
@@ -117,14 +114,13 @@ fn test_post_form() {
         http::Response::default()
     });
 
-    let form = &[("hello", "world"), ("sean", "monstar")];
+    let form = &[
+        ("hello", "world"),
+        ("sean", "monstar"),
+    ];
 
     let url = format!("http://{}/form", server.addr());
-    let res = reqwest::blocking::Client::new()
-        .post(&url)
-        .form(form)
-        .send()
-        .expect("request send");
+    let res = reqwest::blocking::Client::new().post(&url).form(form).send().expect("request send");
 
     assert_eq!(res.url().as_str(), &url);
     assert_eq!(res.status(), reqwest::StatusCode::OK);
@@ -135,10 +131,7 @@ fn test_post_form() {
 #[test]
 fn test_error_for_status_4xx() {
     let server = server::http(move |_req| async {
-        http::Response::builder()
-            .status(400)
-            .body(Default::default())
-            .unwrap()
+        http::Response::builder().status(400).body(Default::default()).unwrap()
     });
 
     let url = format!("http://{}/1", server.addr());
@@ -154,10 +147,7 @@ fn test_error_for_status_4xx() {
 #[test]
 fn test_error_for_status_5xx() {
     let server = server::http(move |_req| async {
-        http::Response::builder()
-            .status(500)
-            .body(Default::default())
-            .unwrap()
+        http::Response::builder().status(500).body(Default::default()).unwrap()
     });
 
     let url = format!("http://{}/1", server.addr());
@@ -165,10 +155,7 @@ fn test_error_for_status_5xx() {
 
     let err = res.error_for_status().unwrap_err();
     assert!(err.is_status());
-    assert_eq!(
-        err.status(),
-        Some(reqwest::StatusCode::INTERNAL_SERVER_ERROR)
-    );
+    assert_eq!(err.status(), Some(reqwest::StatusCode::INTERNAL_SERVER_ERROR));
 }
 
 #[test]
@@ -180,10 +167,7 @@ fn test_default_headers() {
 
     let mut headers = http::HeaderMap::with_capacity(1);
     headers.insert("reqwest-test", "orly".parse().unwrap());
-    let client = reqwest::blocking::Client::builder()
-        .default_headers(headers)
-        .build()
-        .unwrap();
+    let client = reqwest::blocking::Client::builder().default_headers(headers).build().unwrap();
 
     let url = format!("http://{}/1", server.addr());
     let res = client.get(&url).send().unwrap();
@@ -205,20 +189,14 @@ fn test_override_default_headers() {
     let mut headers = http::HeaderMap::with_capacity(1);
     headers.insert(
         http::header::AUTHORIZATION,
-        http::header::HeaderValue::from_static("iamatoken"),
+        http::header::HeaderValue::from_static("iamatoken")
     );
-    let client = reqwest::blocking::Client::builder()
-        .default_headers(headers)
-        .build()
-        .unwrap();
+    let client = reqwest::blocking::Client::builder().default_headers(headers).build().unwrap();
 
     let url = format!("http://{}/3", server.addr());
     let res = client
         .get(&url)
-        .header(
-            http::header::AUTHORIZATION,
-            http::header::HeaderValue::from_static("secret"),
-        )
+        .header(http::header::AUTHORIZATION, http::header::HeaderValue::from_static("secret"))
         .send()
         .unwrap();
 
@@ -253,14 +231,8 @@ fn test_appended_headers_not_overwritten() {
     // make sure this also works with default headers
     use reqwest::header;
     let mut headers = header::HeaderMap::with_capacity(1);
-    headers.insert(
-        header::ACCEPT,
-        header::HeaderValue::from_static("text/html"),
-    );
-    let client = reqwest::blocking::Client::builder()
-        .default_headers(headers)
-        .build()
-        .unwrap();
+    headers.insert(header::ACCEPT, header::HeaderValue::from_static("text/html"));
+    let client = reqwest::blocking::Client::builder().default_headers(headers).build().unwrap();
 
     let url = format!("http://{}/4", server.addr());
     let res = client
@@ -282,9 +254,7 @@ fn test_blocking_inside_a_runtime() {
 
     let url = format!("http://{}/text", server.addr());
 
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .build()
-        .expect("new rt");
+    let rt = tokio::runtime::Builder::new_current_thread().build().expect("new rt");
 
     rt.block_on(async move {
         let _should_panic = reqwest::blocking::get(&url);
@@ -294,7 +264,8 @@ fn test_blocking_inside_a_runtime() {
 #[cfg(feature = "default-tls")]
 #[test]
 fn test_allowed_methods_blocking() {
-    let resp = reqwest::blocking::Client::builder()
+    let resp = reqwest::blocking::Client
+        ::builder()
         .https_only(true)
         .build()
         .expect("client builder")
@@ -303,7 +274,8 @@ fn test_allowed_methods_blocking() {
 
     assert_eq!(resp.is_err(), false);
 
-    let resp = reqwest::blocking::Client::builder()
+    let resp = reqwest::blocking::Client
+        ::builder()
         .https_only(true)
         .build()
         .expect("client builder")
@@ -318,7 +290,8 @@ fn test_allowed_methods_blocking() {
 fn test_body_from_bytes() {
     let body = "abc";
     // No external calls are needed. Only the request building is tested.
-    let request = reqwest::blocking::Client::builder()
+    let request = reqwest::blocking::Client
+        ::builder()
         .build()
         .expect("Could not build the client")
         .put("https://google.com")

@@ -4,15 +4,15 @@ use std::io::Write;
 
 use base64::write::EncoderWriter as Base64Encoder;
 use bytes::Bytes;
-use http::{request::Parts, Method, Request as HttpRequest};
+use http::{ request::Parts, Method, Request as HttpRequest };
 use serde::Serialize;
 #[cfg(feature = "json")]
 use serde_json;
 use url::Url;
 use web_sys::RequestCredentials;
 
-use super::{Body, Client, Response};
-use crate::header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE};
+use super::{ Body, Client, Response };
+use crate::header::{ HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE };
 
 /// A request which can be executed with `Client::execute()`.
 pub struct Request {
@@ -174,11 +174,13 @@ impl RequestBuilder {
                 Ok(body) => {
                     req.headers_mut().insert(
                         CONTENT_TYPE,
-                        HeaderValue::from_static("application/x-www-form-urlencoded"),
+                        HeaderValue::from_static("application/x-www-form-urlencoded; charset=UTF-8")
                     );
                     *req.body_mut() = Some(body.into());
                 }
-                Err(err) => error = Some(crate::error::builder(err)),
+                Err(err) => {
+                    error = Some(crate::error::builder(err));
+                }
             }
         }
         if let Some(err) = error {
@@ -195,11 +197,15 @@ impl RequestBuilder {
         if let Ok(ref mut req) = self.request {
             match serde_json::to_vec(json) {
                 Ok(body) => {
-                    req.headers_mut()
-                        .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                    req.headers_mut().insert(
+                        CONTENT_TYPE,
+                        HeaderValue::from_static("application/json")
+                    );
                     *req.body_mut() = Some(body.into());
                 }
-                Err(err) => error = Some(crate::error::builder(err)),
+                Err(err) => {
+                    error = Some(crate::error::builder(err));
+                }
             }
         }
         if let Some(err) = error {
@@ -210,14 +216,14 @@ impl RequestBuilder {
 
     /// Enable HTTP basic authentication.
     pub fn basic_auth<U, P>(self, username: U, password: Option<P>) -> RequestBuilder
-    where
-        U: fmt::Display,
-        P: fmt::Display,
+        where U: fmt::Display, P: fmt::Display
     {
         let mut header_value = b"Basic ".to_vec();
         {
-            let mut encoder =
-                Base64Encoder::from(&mut header_value, &base64::engine::DEFAULT_ENGINE);
+            let mut encoder = Base64Encoder::from(
+                &mut header_value,
+                &base64::engine::DEFAULT_ENGINE
+            );
             // The unwraps here are fine because Vec::write* is infallible.
             write!(encoder, "{}:", username).unwrap();
             if let Some(password) = password {
@@ -229,10 +235,7 @@ impl RequestBuilder {
     }
 
     /// Enable HTTP bearer authentication.
-    pub fn bearer_auth<T>(self, token: T) -> RequestBuilder
-    where
-        T: fmt::Display,
-    {
+    pub fn bearer_auth<T>(self, token: T) -> RequestBuilder where T: fmt::Display {
         let header_value = format!("Bearer {}", token);
         self.header(crate::header::AUTHORIZATION, header_value)
     }
@@ -250,29 +253,34 @@ impl RequestBuilder {
     #[cfg_attr(docsrs, doc(cfg(feature = "multipart")))]
     pub fn multipart(mut self, multipart: super::multipart::Form) -> RequestBuilder {
         if let Ok(ref mut req) = self.request {
-            *req.body_mut() = Some(Body::from_form(multipart))
+            *req.body_mut() = Some(Body::from_form(multipart));
         }
         self
     }
 
     /// Add a `Header` to this Request.
     pub fn header<K, V>(mut self, key: K, value: V) -> RequestBuilder
-    where
-        HeaderName: TryFrom<K>,
-        <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
-        HeaderValue: TryFrom<V>,
-        <HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+        where
+            HeaderName: TryFrom<K>,
+            <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+            HeaderValue: TryFrom<V>,
+            <HeaderValue as TryFrom<V>>::Error: Into<http::Error>
     {
         let mut error = None;
         if let Ok(ref mut req) = self.request {
             match <HeaderName as TryFrom<K>>::try_from(key) {
-                Ok(key) => match <HeaderValue as TryFrom<V>>::try_from(value) {
-                    Ok(value) => {
-                        req.headers_mut().append(key, value);
+                Ok(key) =>
+                    match <HeaderValue as TryFrom<V>>::try_from(value) {
+                        Ok(value) => {
+                            req.headers_mut().append(key, value);
+                        }
+                        Err(e) => {
+                            error = Some(crate::error::builder(e.into()));
+                        }
                     }
-                    Err(e) => error = Some(crate::error::builder(e.into())),
-                },
-                Err(e) => error = Some(crate::error::builder(e.into())),
+                Err(e) => {
+                    error = Some(crate::error::builder(e.into()));
+                }
             };
         }
         if let Some(err) = error {
@@ -434,27 +442,17 @@ impl fmt::Debug for RequestBuilder {
 
 fn fmt_request_fields<'a, 'b>(
     f: &'a mut fmt::DebugStruct<'a, 'b>,
-    req: &Request,
+    req: &Request
 ) -> &'a mut fmt::DebugStruct<'a, 'b> {
-    f.field("method", &req.method)
-        .field("url", &req.url)
-        .field("headers", &req.headers)
+    f.field("method", &req.method).field("url", &req.url).field("headers", &req.headers)
 }
 
-impl<T> TryFrom<HttpRequest<T>> for Request
-where
-    T: Into<Body>,
-{
+impl<T> TryFrom<HttpRequest<T>> for Request where T: Into<Body> {
     type Error = crate::Error;
 
     fn try_from(req: HttpRequest<T>) -> crate::Result<Self> {
         let (parts, body) = req.into_parts();
-        let Parts {
-            method,
-            uri,
-            headers,
-            ..
-        } = parts;
+        let Parts { method, uri, headers, .. } = parts;
         let url = Url::parse(&uri.to_string()).map_err(crate::error::builder)?;
         Ok(Request {
             method,
@@ -471,13 +469,7 @@ impl TryFrom<Request> for HttpRequest<Body> {
     type Error = crate::Error;
 
     fn try_from(req: Request) -> crate::Result<Self> {
-        let Request {
-            method,
-            url,
-            headers,
-            body,
-            ..
-        } = req;
+        let Request { method, url, headers, body, .. } = req;
 
         let mut req = HttpRequest::builder()
             .method(method)
